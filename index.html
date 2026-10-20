@@ -3,61 +3,131 @@
 <title>Scholarship Monitoring</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <style>
-body{font-family:system-ui,sans-serif;max-width:1100px;margin:1rem auto;padding:0 1rem;color:#222}
-input,select,button{padding:.4rem;margin:.15rem;font:inherit}button{cursor:pointer}
-table{border-collapse:collapse;width:100%;font-size:.9rem}th,td{border:1px solid #ccc;padding:.35rem;text-align:left;vertical-align:top}
-.cards{display:flex;gap:.6rem;flex-wrap:wrap}.card{border:1px solid #ccc;border-radius:6px;padding:.6rem 1rem}.card b{font-size:1.4rem;display:block}
-#msg{padding:.5rem;margin:.5rem 0;border-radius:4px}.err{background:#fde2e2}.ok{background:#dff5df}
-fieldset{margin:.8rem 0}.hide{display:none}pre{background:#f4f4f4;padding:.5rem;white-space:pre-wrap}
+:root{--bg:#f5f6f8;--surface:#fff;--ink:#1b2430;--muted:#5b6675;--line:#e2e6eb;--accent:#1f4e79;--accent-ink:#fff;
+--ok-bg:#e6f4ea;--ok:#1e6b3a;--warn-bg:#fdf3e1;--warn:#8a5a00;--bad-bg:#fbe9e7;--bad:#a12b1f;--mute-bg:#edf0f3;--dark-bg:#e3eaf3;--dark:#1f3a5f}
+@media(prefers-color-scheme:dark){:root{--bg:#12161b;--surface:#1a2027;--ink:#e8ecf1;--muted:#9aa5b3;--line:#2b333c;--accent:#7fb0e0;--accent-ink:#0f1720;
+--ok-bg:#16301f;--ok:#7fd49b;--warn-bg:#3a2d12;--warn:#f0c36d;--bad-bg:#3d1d19;--bad:#f1a094;--mute-bg:#242b33;--dark-bg:#1d2b3d;--dark:#a9c8ee}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 "Segoe UI",system-ui,-apple-system,Roboto,Helvetica,Arial,sans-serif}
+.hide{display:none!important}
+header{background:var(--surface);border-bottom:1px solid var(--line)}
+.bar{max-width:1180px;margin:0 auto;padding:12px 24px;display:flex;align-items:center;justify-content:space-between;gap:16px}
+.brand{font-size:16px;font-weight:650;letter-spacing:.1px}
+.who{display:flex;align-items:center;gap:12px;color:var(--muted)}
+main{max-width:1180px;margin:0 auto;padding:24px}
+h2{font-size:15px;margin:0 0 12px;font-weight:650}
+input,select,button{font:inherit;color:inherit}
+input,select{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:7px 10px;min-height:34px}
+input:focus,select:focus,button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+label{display:block;font-size:12.5px;color:var(--muted);margin-bottom:4px}
+button{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:6px 12px;cursor:pointer;min-height:32px}
+button:hover{border-color:var(--muted)}
+button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600}
+button.primary:hover{filter:brightness(1.08)}
+button.link{border:none;background:none;color:var(--accent);padding:4px 6px;min-height:0}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:20px}
+.login{max-width:360px;margin:72px auto}
+.login .field{margin-bottom:14px}.login input{width:100%}
+.login p{color:var(--muted);margin:0 0 20px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);background:var(--surface);border:1px solid var(--line);border-radius:8px;margin-bottom:16px}
+.stat{padding:16px 20px;border-left:1px solid var(--line)}.stat:first-child{border-left:none}
+.stat b{display:block;font-size:26px;font-weight:600;line-height:1.1;margin-bottom:2px}.stat span{color:var(--muted);font-size:13px}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 0 12px}
+.toolbar input[type=search]{flex:1;min-width:200px}
+details.panel{margin-bottom:16px;padding:0}
+details summary{cursor:pointer;padding:12px 20px;font-weight:600;list-style:none}
+details summary::-webkit-details-marker{display:none}
+details[open] summary{border-bottom:1px solid var(--line)}
+details .body{padding:16px 20px;display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;margin-bottom:14px}
+.grid .wide{grid-column:1/-1}
+.layout{display:grid;grid-template-columns:340px 1fr;gap:24px;align-items:start}
+.layout input,.layout select{width:100%}
+.note{color:var(--muted);font-size:12.5px;margin:10px 0 0}
+.tablewrap{background:var(--surface);border:1px solid var(--line);border-radius:8px;overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:860px}
+th{text-align:left;font-weight:600;color:var(--muted);font-size:12.5px;padding:10px 14px;border-bottom:1px solid var(--line);background:var(--bg);white-space:nowrap}
+td{padding:12px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+tr:last-child td{border-bottom:none}
+.id{font-weight:650}.sub{color:var(--muted);font-size:12.5px}
+.chip{display:inline-block;padding:1px 9px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap}
+.chip.ok{background:var(--ok-bg);color:var(--ok)}.chip.warn{background:var(--warn-bg);color:var(--warn)}
+.chip.bad{background:var(--bad-bg);color:var(--bad)}.chip.mute{background:var(--mute-bg);color:var(--muted)}.chip.dark{background:var(--dark-bg);color:var(--dark)}
+.reasons{margin:6px 0 0;padding-left:16px;color:var(--muted);font-size:12.5px}
+.actions{display:flex;flex-wrap:wrap;gap:4px}
+.empty{padding:36px;text-align:center;color:var(--muted)}
+#msg{position:fixed;top:16px;right:16px;max-width:360px;padding:10px 14px;border-radius:8px;border:1px solid;z-index:20;box-shadow:0 2px 8px rgba(0,0,0,.12)}
+#msg.err{background:var(--bad-bg);color:var(--bad);border-color:var(--bad)}#msg.ok{background:var(--ok-bg);color:var(--ok);border-color:var(--ok)}
+#drawer{position:fixed;top:0;right:0;height:100%;width:min(400px,100%);background:var(--surface);border-left:1px solid var(--line);z-index:15;padding:20px;overflow:auto;transform:translateX(100%);transition:transform .2s ease}
+#drawer.open{transform:none}
+.drawer-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+.drawer-head h2{margin:0}
+.entry{border-left:2px solid var(--line);padding:0 0 16px 14px;margin-left:4px}
+.entry b{display:block}.entry .sub{display:block}
+@media(prefers-reduced-motion:reduce){#drawer{transition:none}}
+@media(max-width:860px){.layout{grid-template-columns:1fr}.stats{grid-template-columns:repeat(2,1fr)}.stat:nth-child(3){border-left:none}.stat:nth-child(n+3){border-top:1px solid var(--line)}main{padding:16px}}
 </style></head><body>
-<h2>Scholarship Monitoring and Academic Compliance</h2>
-<div id="msg" class="hide"></div>
+<header><div class="bar"><div class="brand">Scholarship Monitoring</div>
+<div class="who hide" id="whoBox"><span id="who"></span><button onclick="logout()">Sign out</button></div></div></header>
+<div id="msg" class="hide" role="status"></div>
 
-<div id="login"><fieldset><legend>Sign in</legend>
-<input id="em" type="email" placeholder="email"><input id="pw" type="password" placeholder="password">
-<button onclick="login()">Sign in</button></fieldset></div>
+<main>
+<div id="login" class="panel login">
+<h2>Sign in</h2><p>Scholarship Office portal</p>
+<div class="field"><label for="em">Email</label><input id="em" type="email" autocomplete="username"></div>
+<div class="field"><label for="pw">Password</label><input id="pw" type="password" autocomplete="current-password"></div>
+<button class="primary" onclick="login()">Sign in</button></div>
 
 <div id="app" class="hide">
-<p><span id="who"></span> <button onclick="logout()">Sign out</button></p>
-
 <div id="scholarView" class="hide">
-<fieldset><legend>Submit semester grades</legend>
-Academic year <input id="ay" value="2026-2027" size="9"> Semester
-<select id="sem"><option>1</option><option>2</option><option>3</option></select><br>
-GWA <input id="gwa" type="number" step="0.01" style="width:5em"> Units <input id="units" type="number" style="width:5em">
-Failed <input id="failed" type="number" style="width:4em"> INC <input id="inc" type="number" style="width:4em">
-Dropped <input id="drop" type="number" style="width:4em"><br>
-Grade-document reference <input id="ev" size="30"> <button onclick="submitGrades()">Submit</button></fieldset>
-</div>
+<div class="layout">
+<section class="panel"><h2>Submit semester grades</h2>
+<div class="grid">
+<div><label for="ay">Academic year</label><input id="ay" value="2026-2027"></div>
+<div><label for="sem">Semester</label><select id="sem"><option>1</option><option>2</option><option>3</option></select></div>
+<div><label for="gwa">GWA (1.00 to 5.00)</label><input id="gwa" type="number" step="0.01" min="1" max="5"></div>
+<div><label for="units">Enrolled units</label><input id="units" type="number" min="0"></div>
+<div><label for="failed">Failed</label><input id="failed" type="number" min="0"></div>
+<div><label for="inc">Incomplete</label><input id="inc" type="number" min="0"></div>
+<div><label for="drop">Dropped</label><input id="drop" type="number" min="0"></div>
+<div class="wide"><label for="ev">Grade-document reference</label><input id="ev" placeholder="e.g. file name or document ID"></div></div>
+<button class="primary" onclick="submitGrades()">Submit grades</button>
+<p class="note">If staff returned a term, submit it again with corrections. It goes back to pending verification.</p></section>
+<section><h2 id="listTitleS">Your submissions</h2><div id="scholarList"></div></section>
+</div></div>
 
 <div id="staffView" class="hide">
-<div class="cards" id="dash"></div>
-<fieldset><legend>Register scholar</legend>
-<input id="rsid" placeholder="Student ID"><input id="rname" placeholder="Full name">
-<select id="rprog"></select><button onclick="registerScholar()">Register</button></fieldset>
-<fieldset><legend>Search and filter</legend>
-<input id="q" placeholder="Student ID or name" oninput="render()">
-<select id="fsem" onchange="render()"><option value="2026-2027|1">AY 2026-2027 Sem 1</option><option value="2026-2027|2">AY 2026-2027 Sem 2</option></select>
-<select id="fprog" onchange="render()"><option value="">All programs</option></select>
-<select id="fcomp" onchange="render()"><option value="">All compliance</option><option>Not Evaluated</option><option>Compliant</option><option>With Deficiency</option></select>
-</fieldset></div>
-
-<h3 id="listTitle">Submissions</h3>
-<table><thead><tr><th>Scholar</th><th>Program</th><th>Term</th><th>Data</th><th>Submitted (Manila)</th>
-<th>Verification</th><th>Compliance</th><th>Renewal</th><th id="actTh">Actions</th></tr></thead><tbody id="rows"></tbody></table>
-<h3>History</h3><pre id="hist">Select "History" on a row.</pre>
+<div class="stats" id="dash"></div>
+<details class="panel"><summary>Register a scholar</summary><div class="body">
+<div><label for="rsid">Student ID</label><input id="rsid"></div>
+<div><label for="rname">Full name</label><input id="rname"></div>
+<div><label for="rprog">Program</label><select id="rprog"></select></div>
+<button class="primary" onclick="registerScholar()">Register scholar</button></div></details>
+<div class="toolbar">
+<input id="q" type="search" placeholder="Search by student ID or name" oninput="render()" aria-label="Search">
+<select id="fsem" onchange="render()" aria-label="Term"><option value="2026-2027|1">AY 2026-2027, Semester 1</option><option value="2026-2027|2">AY 2026-2027, Semester 2</option></select>
+<select id="fprog" onchange="render()" aria-label="Program"><option value="">All programs</option></select>
+<select id="fcomp" onchange="render()" aria-label="Compliance"><option value="">All compliance</option><option>Not Evaluated</option><option>Compliant</option><option>With Deficiency</option></select></div>
+<div class="tablewrap" id="staffList"></div>
 </div>
+</div>
+</main>
+
+<aside id="drawer" aria-label="History"><div class="drawer-head"><h2>History</h2><button onclick="closeHist()">Close</button></div><div id="hist"></div></aside>
 
 <script>
-// ---- configure (anon key only; never the service-role key) ----
+// ---- configure (publishable/anon key only; never the service-role key) ----
 const SUPABASE_URL='https://enxswiakyyjfmtpdhbsj.supabase.co', SUPABASE_ANON_KEY='sb_publishable_G2HgsgiqbM-TJyOegGlxJg_psuZxlbv';
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
 const $=i=>document.getElementById(i);
-let role='scholar',subs=[],programs=[],allScholars=[];
+let role='scholar',subs=[],programs=[],allScholars=[],timer;
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const msg=(t,ok)=>{const m=$('msg');m.textContent=t;m.className=ok?'ok':'err';setTimeout(()=>m.className='hide',6000)};
-const fmt=t=>new Date(t).toLocaleString('en-PH',{timeZone:'Asia/Manila'});
+const msg=(t,ok)=>{const m=$('msg');m.textContent=t;m.className=ok?'ok':'err';clearTimeout(timer);timer=setTimeout(()=>m.className='hide',6000)};
+const fmt=t=>new Date(t).toLocaleString('en-PH',{timeZone:'Asia/Manila',dateStyle:'medium',timeStyle:'short'});
+const chip=(t,c)=>`<span class="chip ${c}">${esc(t)}</span>`;
+const vC={Pending:'warn',Verified:'ok',Returned:'bad'}, cC={'Not Evaluated':'mute',Compliant:'ok','With Deficiency':'bad'}, rC={None:'mute',Approved:'ok',Held:'dark'};
 
+$('pw').addEventListener('keydown',e=>{if(e.key==='Enter')login()});
 async function login(){
   const{error}=await sb.auth.signInWithPassword({email:$('em').value,password:$('pw').value});
   if(error)return msg(error.message); start();
@@ -67,47 +137,54 @@ async function start(){
   const{data:{user}}=await sb.auth.getUser(); if(!user)return;
   const{data:p}=await sb.from('profiles').select('role,full_name').eq('id',user.id).single();
   role=p?.role||'scholar';
-  $('login').className='hide';$('app').className='';$('who').textContent=`${p?.full_name} (${role})`;
+  $('login').className='hide';$('app').className='';$('whoBox').className='who';
+  $('who').textContent=`${p?.full_name} (${role})`;
   $(role==='staff'?'staffView':'scholarView').className='';
   const{data:pg}=await sb.from('programs').select('*').order('id');programs=pg||[];
   $('rprog').innerHTML=programs.map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join('');
   $('fprog').innerHTML='<option value="">All programs</option>'+programs.map(x=>`<option>${esc(x.name)}</option>`).join('');
-  if(role!=='staff')$('actTh').textContent='';
   load();
 }
 async function load(){
   const{data,error}=await sb.from('submissions').select('*,scholars(student_id,full_name,programs(name))').order('submitted_at');
   if(error)return msg(error.message); subs=data;
-  const{data:sc}=await sb.from('scholars').select('id,programs(name)');allScholars=sc||[];render();
+  if(role==='staff'){const{data:sc}=await sb.from('scholars').select('id,programs(name)');allScholars=sc||[];}
+  render();
 }
-function render(){
-  let [ay,sem]=role==='staff'?$('fsem').value.split('|'):[null,null];
-  let list=subs.filter(s=>!ay||(s.academic_year===ay&&String(s.semester)===sem));
-  if(role==='staff'){
-    const sel=list;
-    $('dash').innerHTML=[['Total assigned scholars',allScholars.filter(x=>!$('fprog').value||x.programs.name===$('fprog').value).length],['Pending verification',sel.filter(s=>s.verification_status==='Pending').length],
-      ['Compliant',sel.filter(s=>s.compliance==='Compliant').length],['With deficiency',sel.filter(s=>s.compliance==='With Deficiency').length]]
-      .map(([a,b])=>`<div class="card"><b>${b}</b>${a}</div>`).join('');
-    const q=$('q').value.toLowerCase(),fp=$('fprog').value,fc=$('fcomp').value;
-    list=list.filter(s=>(!q||(s.scholars.student_id+s.scholars.full_name).toLowerCase().includes(q))
-      &&(!fp||s.scholars.programs.name===fp)&&(!fc||s.compliance===fc));
-  }
-  $('rows').innerHTML=list.map(s=>`<tr>
-   <td>${esc(s.scholars.student_id)}<br>${esc(s.scholars.full_name)}</td><td>${esc(s.scholars.programs.name)}</td>
-   <td>${esc(s.academic_year)} S${s.semester}</td>
-   <td>GWA ${s.gwa}<br>Units ${s.units}<br>F ${s.failed} / INC ${s.inc} / D ${s.dropped}<br>Ref: ${esc(s.evidence_ref)}</td>
+function row(s){
+  const staff=role==='staff';
+  return `<tr>
+   <td><div class="id">${esc(s.scholars.student_id)}</div><div class="sub">${esc(s.scholars.full_name)}</div></td>
+   <td>${esc(s.scholars.programs.name)}</td>
+   <td>${esc(s.academic_year)}<div class="sub">Semester ${s.semester}</div></td>
+   <td>GWA ${s.gwa}, ${s.units} units<div class="sub">Failed ${s.failed}, INC ${s.inc}, Dropped ${s.dropped}</div><div class="sub">Ref: ${esc(s.evidence_ref)}</div></td>
    <td>${fmt(s.submitted_at)}</td>
-   <td>${s.verification_status}${s.return_reason?'<br><i>'+esc(s.return_reason)+'</i>':''}</td>
-   <td>${s.compliance}${s.compliance_reasons.map(r=>'<br>&bull; '+esc(r)).join('')}</td>
-   <td>${s.renewal_decision}${s.decision_note?'<br><i>'+esc(s.decision_note)+'</i>':''}</td>
-   <td>${role==='staff'?`<button onclick="verify('${s.id}','Verified')">Verify</button><button onclick="verify('${s.id}','Returned')">Return</button>
-     <button onclick="evalSub('${s.id}')">Evaluate</button><button onclick="decide('${s.id}','Approved')">Approve</button>
-     <button onclick="decide('${s.id}','Held')">Hold</button>`:''}<button onclick="showHist('${s.id}')">History</button></td></tr>`).join('');
+   <td>${chip(s.verification_status,vC[s.verification_status])}${s.return_reason?`<div class="sub">${esc(s.return_reason)}</div>`:''}</td>
+   <td>${chip(s.compliance,cC[s.compliance])}${s.compliance_reasons.length?`<ul class="reasons">${s.compliance_reasons.map(r=>`<li>${esc(r)}</li>`).join('')}</ul>`:''}</td>
+   <td>${chip(s.renewal_decision==='None'?'No decision':s.renewal_decision,rC[s.renewal_decision])}${s.decision_note?`<div class="sub">${esc(s.decision_note)}</div>`:''}</td>
+   <td><div class="actions">${staff?`<button onclick="verify('${s.id}','Verified')">Verify</button><button onclick="verify('${s.id}','Returned')">Return</button><button onclick="evalSub('${s.id}')">Evaluate</button><button onclick="decide('${s.id}','Approved')">Approve</button><button onclick="decide('${s.id}','Held')">Hold</button>`:''}<button class="link" onclick="showHist('${s.id}')">History</button></div></td></tr>`;
+}
+const table=(list,empty)=>list.length?`<table><thead><tr><th>Scholar</th><th>Program</th><th>Term</th><th>Academic summary</th><th>Submitted (Manila)</th><th>Verification</th><th>Compliance</th><th>Renewal</th><th>Actions</th></tr></thead><tbody>${list.map(row).join('')}</tbody></table>`:`<div class="empty">${empty}</div>`;
+function render(){
+  if(role!=='staff'){
+    $('scholarList').innerHTML=`<div class="tablewrap">${table(subs,'No submission yet. Fill in the form to submit this semester.')}</div>`;return;
+  }
+  const [ay,sem]=$('fsem').value.split('|');
+  const term=subs.filter(s=>s.academic_year===ay&&String(s.semester)===sem);
+  const fp=$('fprog').value,fc=$('fcomp').value,q=$('q').value.toLowerCase();
+  $('dash').innerHTML=[['Assigned scholars',allScholars.filter(x=>!fp||x.programs.name===fp).length],
+    ['Pending verification',term.filter(s=>s.verification_status==='Pending').length],
+    ['Compliant',term.filter(s=>s.compliance==='Compliant').length],
+    ['With deficiency',term.filter(s=>s.compliance==='With Deficiency').length]]
+    .map(([a,b])=>`<div class="stat"><b>${b}</b><span>${a}</span></div>`).join('');
+  const list=term.filter(s=>(!q||(s.scholars.student_id+' '+s.scholars.full_name).toLowerCase().includes(q))
+    &&(!fp||s.scholars.programs.name===fp)&&(!fc||s.compliance===fc));
+  $('staffList').innerHTML=table(list,'No submissions match. Change the term or filters.');
 }
 async function call(fn,args){const{error}=await sb.rpc(fn,args);if(error)return msg(error.message);msg('Saved',true);load()}
-const verify=(id,st)=>call('verify_submission',{p_id:id,p_status:st,p_reason:st==='Returned'?prompt('Reason for return:'):null});
+const verify=(id,st)=>{let r=null;if(st==='Returned'){r=prompt('Reason for returning this evidence:');if(r===null)return}call('verify_submission',{p_id:id,p_status:st,p_reason:r})};
 const evalSub=id=>call('evaluate_submission',{p_id:id});
-const decide=(id,d)=>call('decide_renewal',{p_id:id,p_decision:d,p_note:prompt('Decision note:')});
+const decide=(id,d)=>{const n=prompt('Decision note:');if(n===null)return;call('decide_renewal',{p_id:id,p_decision:d,p_note:n})};
 function submitGrades(){
   const n=i=>$(i).value===''?null:Number($(i).value);
   call('submit_grades',{p_ay:$('ay').value,p_sem:Number($('sem').value),p_gwa:n('gwa'),p_units:n('units')??-1,
@@ -115,12 +192,15 @@ function submitGrades(){
 }
 async function registerScholar(){
   const{error}=await sb.from('scholars').insert({student_id:$('rsid').value.trim(),full_name:$('rname').value.trim(),program_id:Number($('rprog').value)});
-  if(error)return msg(error.message);msg('Scholar registered',true);
+  if(error)return msg(error.message);msg('Scholar registered',true);$('rsid').value='';$('rname').value='';load();
 }
 async function showHist(id){
   const{data,error}=await sb.from('history').select('*').eq('submission_id',id).order('at');
   if(error)return msg(error.message);
-  $('hist').textContent=data.map(h=>`${fmt(h.at)} | ${h.action} | ${h.detail||''} | actor ${String(h.actor).slice(0,8)}`).join('\n')||'No history';
+  $('hist').innerHTML=data.length?data.map(h=>`<div class="entry"><b>${esc(h.action)}</b><span class="sub">${fmt(h.at)}, actor ${esc(String(h.actor).slice(0,8))}</span>${h.detail?`<span>${esc(h.detail)}</span>`:''}</div>`).join(''):'<div class="empty">No history yet.</div>';
+  $('drawer').classList.add('open');
 }
+const closeHist=()=>$('drawer').classList.remove('open');
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeHist()});
 sb.auth.getSession().then(({data})=>{if(data.session)start()});
 </script></body></html>
