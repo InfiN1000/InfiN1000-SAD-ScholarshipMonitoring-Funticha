@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Scholarship Monitoring</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<style>
+body{font-family:system-ui,sans-serif;max-width:1100px;margin:1rem auto;padding:0 1rem;color:#222}
+input,select,button{padding:.4rem;margin:.15rem;font:inherit}button{cursor:pointer}
+table{border-collapse:collapse;width:100%;font-size:.9rem}th,td{border:1px solid #ccc;padding:.35rem;text-align:left;vertical-align:top}
+.cards{display:flex;gap:.6rem;flex-wrap:wrap}.card{border:1px solid #ccc;border-radius:6px;padding:.6rem 1rem}.card b{font-size:1.4rem;display:block}
+#msg{padding:.5rem;margin:.5rem 0;border-radius:4px}.err{background:#fde2e2}.ok{background:#dff5df}
+fieldset{margin:.8rem 0}.hide{display:none}pre{background:#f4f4f4;padding:.5rem;white-space:pre-wrap}
+</style></head><body>
+<h2>Scholarship Monitoring and Academic Compliance</h2>
+<div id="msg" class="hide"></div>
+
+<div id="login"><fieldset><legend>Sign in</legend>
+<input id="em" type="email" placeholder="email"><input id="pw" type="password" placeholder="password">
+<button onclick="login()">Sign in</button></fieldset></div>
+
+<div id="app" class="hide">
+<p><span id="who"></span> <button onclick="logout()">Sign out</button></p>
+
+<div id="scholarView" class="hide">
+<fieldset><legend>Submit semester grades</legend>
+Academic year <input id="ay" value="2026-2027" size="9"> Semester
+<select id="sem"><option>1</option><option>2</option><option>3</option></select><br>
+GWA <input id="gwa" type="number" step="0.01" style="width:5em"> Units <input id="units" type="number" style="width:5em">
+Failed <input id="failed" type="number" style="width:4em"> INC <input id="inc" type="number" style="width:4em">
+Dropped <input id="drop" type="number" style="width:4em"><br>
+Grade-document reference <input id="ev" size="30"> <button onclick="submitGrades()">Submit</button></fieldset>
+</div>
+
+<div id="staffView" class="hide">
+<div class="cards" id="dash"></div>
+<fieldset><legend>Register scholar</legend>
+<input id="rsid" placeholder="Student ID"><input id="rname" placeholder="Full name">
+<select id="rprog"></select><button onclick="registerScholar()">Register</button></fieldset>
+<fieldset><legend>Search and filter</legend>
+<input id="q" placeholder="Student ID or name" oninput="render()">
+<select id="fsem" onchange="render()"><option value="2026-2027|1">AY 2026-2027 Sem 1</option><option value="2026-2027|2">AY 2026-2027 Sem 2</option></select>
+<select id="fprog" onchange="render()"><option value="">All programs</option></select>
+<select id="fcomp" onchange="render()"><option value="">All compliance</option><option>Not Evaluated</option><option>Compliant</option><option>With Deficiency</option></select>
+</fieldset></div>
+
+<h3 id="listTitle">Submissions</h3>
+<table><thead><tr><th>Scholar</th><th>Program</th><th>Term</th><th>Data</th><th>Submitted (Manila)</th>
+<th>Verification</th><th>Compliance</th><th>Renewal</th><th id="actTh">Actions</th></tr></thead><tbody id="rows"></tbody></table>
+<h3>History</h3><pre id="hist">Select "History" on a row.</pre>
+</div>
+
+<script>
+// ---- configure (anon key only; never the service-role key) ----
+const SUPABASE_URL='YOUR_SUPABASE_URL', SUPABASE_ANON_KEY='YOUR_SUPABASE_ANON_KEY';
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+const $=i=>document.getElementById(i);
+let role='scholar',subs=[],programs=[];
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const msg=(t,ok)=>{const m=$('msg');m.textContent=t;m.className=ok?'ok':'err';setTimeout(()=>m.className='hide',6000)};
+const fmt=t=>new Date(t).toLocaleString('en-PH',{timeZone:'Asia/Manila'});
+
+async function login(){
+  const{error}=await sb.auth.signInWithPassword({email:$('em').value,password:$('pw').value});
+  if(error)return msg(error.message); start();
+}
+async function logout(){await sb.auth.signOut();location.reload()}
+async function start(){
+  const{data:{user}}=await sb.auth.getUser(); if(!user)return;
+  const{data:p}=await sb.from('profiles').select('role,full_name').eq('id',user.id).single();
+  role=p?.role||'scholar';
+  $('login').className='hide';$('app').className='';$('who').textContent=`${p?.full_name} (${role})`;
+  $(role==='staff'?'staffView':'scholarView').className='';
+  const{data:pg}=await sb.from('programs').select('*').order('id');programs=pg||[];
+  $('rprog').innerHTML=programs.map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join('');
+  $('fprog').innerHTML='<option value="">All programs</option>'+programs.map(x=>`<option>${esc(x.name)}</option>`).join('');
+  if(role!=='staff')$('actTh').textContent='';
+  load();
+}
+async function load(){
+  const{data,error}=await sb.from('submissions').select('*,scholars(student_id,full_name,programs(name))').order('submitted_at');
+  if(error)return msg(error.message); subs=data;render();
+}
+function render(){
+  let [ay,sem]=role==='staff'?$('fsem').value.split('|'):[null,null];
+  let list=subs.filter(s=>!ay||(s.academic_year===ay&&String(s.semester)===sem));
+  if(role==='staff'){
+    const sel=list;
+    $('dash').innerHTML=[['Assigned scholars (with submission)',sel.length],['Pending verification',sel.filter(s=>s.verification_status==='Pending').length],
+      ['Compliant',sel.filter(s=>s.compliance==='Compliant').length],['With deficiency',sel.filter(s=>s.compliance==='With Deficiency').length]]
+      .map(([a,b])=>`<div class="card"><b>${b}</b>${a}</div>`).join('');
+    const q=$('q').value.toLowerCase(),fp=$('fprog').value,fc=$('fcomp').value;
+    list=list.filter(s=>(!q||(s.scholars.student_id+s.scholars.full_name).toLowerCase().includes(q))
+      &&(!fp||s.scholars.programs.name===fp)&&(!fc||s.compliance===fc));
+  }
+  $('rows').innerHTML=list.map(s=>`<tr>
+   <td>${esc(s.scholars.student_id)}<br>${esc(s.scholars.full_name)}</td><td>${esc(s.scholars.programs.name)}</td>
+   <td>${esc(s.academic_year)} S${s.semester}</td>
+   <td>GWA ${s.gwa}<br>Units ${s.units}<br>F ${s.failed} / INC ${s.inc} / D ${s.dropped}<br>Ref: ${esc(s.evidence_ref)}</td>
+   <td>${fmt(s.submitted_at)}</td>
+   <td>${s.verification_status}${s.return_reason?'<br><i>'+esc(s.return_reason)+'</i>':''}</td>
+   <td>${s.compliance}${s.compliance_reasons.map(r=>'<br>&bull; '+esc(r)).join('')}</td>
+   <td>${s.renewal_decision}${s.decision_note?'<br><i>'+esc(s.decision_note)+'</i>':''}</td>
+   <td>${role==='staff'?`<button onclick="verify('${s.id}','Verified')">Verify</button><button onclick="verify('${s.id}','Returned')">Return</button>
+     <button onclick="evalSub('${s.id}')">Evaluate</button><button onclick="decide('${s.id}','Approved')">Approve</button>
+     <button onclick="decide('${s.id}','Held')">Hold</button>`:''}<button onclick="showHist('${s.id}')">History</button></td></tr>`).join('');
+}
+async function call(fn,args){const{error}=await sb.rpc(fn,args);if(error)return msg(error.message);msg('Saved',true);load()}
+const verify=(id,st)=>call('verify_submission',{p_id:id,p_status:st,p_reason:st==='Returned'?prompt('Reason for return:'):null});
+const evalSub=id=>call('evaluate_submission',{p_id:id});
+const decide=(id,d)=>call('decide_renewal',{p_id:id,p_decision:d,p_note:prompt('Decision note:')});
+function submitGrades(){
+  const n=i=>$(i).value===''?null:Number($(i).value);
+  call('submit_grades',{p_ay:$('ay').value,p_sem:Number($('sem').value),p_gwa:n('gwa'),p_units:n('units')??-1,
+    p_failed:n('failed')??-1,p_inc:n('inc')??-1,p_drop:n('drop')??-1,p_evidence:$('ev').value});
+}
+async function registerScholar(){
+  const{error}=await sb.from('scholars').insert({student_id:$('rsid').value.trim(),full_name:$('rname').value.trim(),program_id:Number($('rprog').value)});
+  if(error)return msg(error.message);msg('Scholar registered',true);
+}
+async function showHist(id){
+  const{data,error}=await sb.from('history').select('*').eq('submission_id',id).order('at');
+  if(error)return msg(error.message);
+  $('hist').textContent=data.map(h=>`${fmt(h.at)} | ${h.action} | ${h.detail||''} | actor ${String(h.actor).slice(0,8)}`).join('\n')||'No history';
+}
+sb.auth.getSession().then(({data})=>{if(data.session)start()});
+</script></body></html>
