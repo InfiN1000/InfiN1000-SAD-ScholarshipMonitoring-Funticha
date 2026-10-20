@@ -50,10 +50,10 @@ Grade-document reference <input id="ev" size="30"> <button onclick="submitGrades
 
 <script>
 // ---- configure (anon key only; never the service-role key) ----
-const SUPABASE_URL='YOUR_SUPABASE_URL', SUPABASE_ANON_KEY='YOUR_SUPABASE_ANON_KEY';
+const SUPABASE_URL='https://enxswiakyyjfmtpdhbsj.supabase.co', SUPABASE_ANON_KEY='sb_publishable_G2HgsgiqbM-TJyOegGlxJg_psuZxlbv';
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
 const $=i=>document.getElementById(i);
-let role='scholar',subs=[],programs=[];
+let role='scholar',subs=[],programs=[],allScholars=[];
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const msg=(t,ok)=>{const m=$('msg');m.textContent=t;m.className=ok?'ok':'err';setTimeout(()=>m.className='hide',6000)};
 const fmt=t=>new Date(t).toLocaleString('en-PH',{timeZone:'Asia/Manila'});
@@ -77,14 +77,15 @@ async function start(){
 }
 async function load(){
   const{data,error}=await sb.from('submissions').select('*,scholars(student_id,full_name,programs(name))').order('submitted_at');
-  if(error)return msg(error.message); subs=data;render();
+  if(error)return msg(error.message); subs=data;
+  const{data:sc}=await sb.from('scholars').select('id,programs(name)');allScholars=sc||[];render();
 }
 function render(){
   let [ay,sem]=role==='staff'?$('fsem').value.split('|'):[null,null];
   let list=subs.filter(s=>!ay||(s.academic_year===ay&&String(s.semester)===sem));
   if(role==='staff'){
     const sel=list;
-    $('dash').innerHTML=[['Assigned scholars (with submission)',sel.length],['Pending verification',sel.filter(s=>s.verification_status==='Pending').length],
+    $('dash').innerHTML=[['Total assigned scholars',allScholars.filter(x=>!$('fprog').value||x.programs.name===$('fprog').value).length],['Pending verification',sel.filter(s=>s.verification_status==='Pending').length],
       ['Compliant',sel.filter(s=>s.compliance==='Compliant').length],['With deficiency',sel.filter(s=>s.compliance==='With Deficiency').length]]
       .map(([a,b])=>`<div class="card"><b>${b}</b>${a}</div>`).join('');
     const q=$('q').value.toLowerCase(),fp=$('fprog').value,fc=$('fcomp').value;
