@@ -1,4 +1,3 @@
--- Scholarship Monitoring: run whole file in Supabase SQL Editor (synthetic data only)
 create table profiles(id uuid primary key references auth.users on delete cascade,
   role text not null default 'scholar' check(role in('scholar','staff')), full_name text);
 
@@ -38,7 +37,6 @@ create trigger on_auth_user_created after insert on auth.users for each row exec
 create function is_staff() returns boolean language sql stable security definer set search_path=public as
 $$ select exists(select 1 from profiles where id=auth.uid() and role='staff') $$;
 
--- RLS: reads by policy; ALL writes to submissions/history go through RPCs only
 alter table profiles enable row level security; alter table programs enable row level security;
 alter table scholars enable row level security; alter table submissions enable row level security;
 alter table history enable row level security;
@@ -139,7 +137,3 @@ from (values
  ('A06',2.00,15,0,0,0,'2026-10-29 17:00+08','Pending')
 ) as v(sid,g,u,f,i,d,t,vs) join scholars c on c.student_id=v.sid;
 
--- AFTER creating two users in Authentication > Users (e.g. staff@test.local, scholar@test.local):
--- update profiles set role='staff' where full_name='staff@test.local';
--- insert into profiles... (auto-created) then link a scholar account:
--- update scholars set user_id=(select id from profiles where full_name='scholar@test.local') where student_id='A02';

@@ -5,8 +5,6 @@ Stack: HTML + JavaScript (single file) + Supabase (Postgres, Auth, Row Level Sec
 ## Files
 - `index.html` - the web app
 - `schema.sql` - tables, access policies, functions, seed records (A01 to A06)
-- `Analysis_Report.html` - Part I (A1 to A6, UML, ERD, use cases, traceability)
-- `TEST_RESULTS.md` - TC01 to TC10 results; `evidence/` - screenshots
 
 ## Configuration (names only; values are not committed)
 In `index.html` set `SUPABASE_URL` and `SUPABASE_ANON_KEY` (the publishable key). Never use the service-role key.
@@ -19,7 +17,7 @@ In `index.html` set `SUPABASE_URL` and `SUPABASE_ANON_KEY` (the publishable key)
    update profiles set role='staff' where full_name='<staff email>';
    update scholars set user_id=(select id from profiles where full_name='<scholar email>') where student_id='A02';
    ```
-4. Run: `python -m http.server 8000` and open http://localhost:8000
+4. open live link https://infin1000.github.io/InfiN1000-SAD-ScholarshipMonitoring-Funticha/
 5. Sign in as staff or scholar.
 
 ## Access enforcement
